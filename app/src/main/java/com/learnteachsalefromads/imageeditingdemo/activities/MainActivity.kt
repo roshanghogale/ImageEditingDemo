@@ -27,7 +27,9 @@ import com.learnteachsalefromads.imageeditingdemo.adapters.ToolAdapter
 import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 import com.learnteachsalefromads.imageeditingdemo.models.ToolAction
 import com.learnteachsalefromads.imageeditingdemo.models.ToolItem
+import com.learnteachsalefromads.imageeditingdemo.utils.CanvasGestureController
 import com.learnteachsalefromads.imageeditingdemo.utils.LayerManager
+import com.learnteachsalefromads.imageeditingdemo.utils.RotateBottomSheet
 
 class MainActivity : AppCompatActivity() {
 
@@ -112,7 +114,23 @@ class MainActivity : AppCompatActivity() {
             hideTools()
             lastClickedLayerIndex = -1
         }
+
+        attachCanvasGestures()
     }
+
+    private fun attachCanvasGestures() {
+
+        val gesture = CanvasGestureController(
+            this,
+            { layerManager.layers.getOrNull(layerManager.selectedIndex)?.container }
+        )
+
+        canvasLayout.setOnTouchListener { _, event ->
+            gesture.onTouch(event)
+            true
+        }
+    }
+
 
     /* ================= Layer Click ================= */
 
@@ -148,6 +166,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun createTools() = mutableListOf(
         ToolItem(ToolAction.TOGGLE_VISIBILITY, R.drawable.ic_eye_closed, "Visibility"),
+        ToolItem(ToolAction.ROTATE, R.drawable.ic_rotate, "Rotate"), // ✅ NEW
         ToolItem(ToolAction.DUPLICATE, R.drawable.ic_duplicate, "Duplicate"),
         ToolItem(ToolAction.DELETE, R.drawable.ic_delete, "Delete")
     )
@@ -167,28 +186,25 @@ class MainActivity : AppCompatActivity() {
 
         when (tool.id) {
 
+            ToolAction.ROTATE -> {
+                RotateBottomSheet {
+                    layerManager.layers.getOrNull(index)?.container
+                }.show(supportFragmentManager, "rotate")
+            }
+
             ToolAction.TOGGLE_VISIBILITY -> {
                 layerManager.toggleVisibility(index)
                 updateVisibilityToolIcon()
-                hideTools()
             }
 
-            ToolAction.DUPLICATE -> {
-                layerManager.duplicate(index)
-                hideTools()
-            }
-
-            ToolAction.DELETE -> {
-                layerManager.remove(index)
-                hideTools()
-            }
-
+            ToolAction.DUPLICATE -> layerManager.duplicate(index)
+            ToolAction.DELETE -> layerManager.remove(index)
             ToolAction.LOCK -> Unit
         }
 
-        layerAdapter.notifyDataSetChanged()
-        scrollToSelected()
+        hideTools()
     }
+
 
     /* ================= Drag & Drop ================= */
 
@@ -219,21 +235,50 @@ class MainActivity : AppCompatActivity() {
 
     /* ================= Add Image ================= */
 
+    // unchanged EXCEPT addImageLayer()
     private fun addImageLayer(uri: Uri) {
-        val iv = ImageView(this).apply {
+
+        val image = ImageView(this).apply {
             setImageURI(uri)
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = Gravity.CENTER }
         }
 
-        layerManager.add(LayerItem("Layer ${layerManager.layers.size + 1}", iv))
+        val rotateHandle = ImageView(this).apply {
+            setImageResource(R.drawable.ic_rotate)
+            layoutParams = FrameLayout.LayoutParams(48, 48).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                topMargin = -48
+            }
+            visibility = View.GONE
+        }
+
+        val container = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
+
+            addView(
+                image,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER
+                )
+            )
+
+            addView(rotateHandle)
+        }
+
+        layerManager.add(
+            LayerItem(
+                name = "Layer ${layerManager.layers.size + 1}",
+                container = container,
+                imageView = image,
+                rotateHandle = rotateHandle
+            )
+        )
+
         layerAdapter.notifyDataSetChanged()
-        scrollToSelected()
-        updateVisibilityToolIcon()
     }
 
     /* ================= Permissions ================= */

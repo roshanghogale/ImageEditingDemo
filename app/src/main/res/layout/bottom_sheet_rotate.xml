@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!-- TITLE -->
+    <TextView
+        android:text="Rotate"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- SLIDER -->
+    <SeekBar
+        android:id="@+id/seekRotate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="360"/>
+
+    <!-- DEGREE DISPLAY -->
+    <EditText
+        android:id="@+id/edtDegree"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:inputType="number"
+        android:hint="0°"
+        android:background="@drawable/bg_layer_item_selected"
+        android:layout_marginTop="8dp"/>
+
+    <!-- QUICK ROTATE -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/btnLeft90"
+            android:text="⟲ 90°"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"/>
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="1dp"/>
+
+        <Button
+            android:id="@+id/btnRight90"
+            android:text="⟳ 90°"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"/>
+    </LinearLayout>
+
+    <!-- UNDO / REDO -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp">
+
+        <Button
+            android:id="@+id/btnUndo"
+            android:text="Undo"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"/>
+
+        <Space
+            android:layout_width="8dp"
+            android:layout_height="1dp"/>
+
+        <Button
+            android:id="@+id/btnRedo"
+            android:text="Redo"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"/>
+    </LinearLayout>
+
+</LinearLayout>

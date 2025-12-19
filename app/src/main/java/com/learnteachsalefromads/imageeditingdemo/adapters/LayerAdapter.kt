@@ -9,84 +9,54 @@ import com.learnteachsalefromads.imageeditingdemo.R
 import com.learnteachsalefromads.imageeditingdemo.databinding.ItemLayerHorizontalBinding
 import com.learnteachsalefromads.imageeditingdemo.utils.LayerManager
 
-/**
- * Horizontal layer strip adapter
- *
- * Responsibilities:
- * - Show layer preview
- * - Highlight selected layer
- * - Show menu overlay only for selected layer
- * - Support drag & drop ordering
- */
 class LayerAdapter(
     private val manager: LayerManager,
     private val onLayerClick: (Int) -> Unit
 ) : RecyclerView.Adapter<LayerAdapter.VH>() {
 
-    /* ================= VIEW HOLDER ================= */
+    inner class VH(val b: ItemLayerHorizontalBinding) :
+        RecyclerView.ViewHolder(b.root)
 
-    inner class VH(val binding: ItemLayerHorizontalBinding) :
-        RecyclerView.ViewHolder(binding.root)
+    override fun onCreateViewHolder(p: ViewGroup, v: Int): VH =
+        VH(ItemLayerHorizontalBinding.inflate(
+            LayoutInflater.from(p.context), p, false))
 
-    /* ================= REQUIRED OVERRIDE ================= */
+    override fun onBindViewHolder(h: VH, pos: Int) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val binding = ItemLayerHorizontalBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
-        return VH(binding)
-    }
-
-    /* ================= BIND ================= */
-
-    override fun onBindViewHolder(holder: VH, position: Int) {
-
-        val index = manager.layers.lastIndex - position
+        val index = manager.layers.lastIndex - pos
         val layer = manager.layers[index]
 
-        holder.binding.txtLayerName.text = layer.name
-        holder.binding.imgPreview.setImageDrawable(layer.imageView.drawable)
+        h.b.txtLayerName.text = layer.name
+        h.b.imgPreview.setImageDrawable(layer.imageView.drawable)
 
-        val context = holder.itemView.context
+        h.b.rootItem.alpha = if (layer.isVisible) 1f else 0.4f
 
-        // ---------- Selection UI ----------
-        if (index == manager.selectedIndex) {
-            holder.binding.rootItem.background =
-                ContextCompat.getDrawable(context, R.drawable.bg_layer_item_selected)
-            holder.binding.btnMenu.visibility = View.VISIBLE
-        } else {
-            holder.binding.rootItem.background =
-                ContextCompat.getDrawable(context, R.drawable.bg_layer_item)
-            holder.binding.btnMenu.visibility = View.GONE
-        }
+        h.b.rootItem.background =
+            ContextCompat.getDrawable(
+                h.itemView.context,
+                if (index == manager.selectedIndex)
+                    R.drawable.bg_layer_item_selected
+                else R.drawable.bg_layer_item
+            )
 
-        // ---------- Visibility UI (FADE EFFECT) ----------
-        holder.binding.rootItem.alpha =
-            if (layer.isVisible) 1.0f else 0.4f   // 👈 faded when hidden
+        h.b.btnMenu.visibility =
+            if (index == manager.selectedIndex) View.VISIBLE else View.GONE
 
-        // ---------- Click ----------
-        holder.binding.rootItem.setOnClickListener {
-            onLayerClick(index)
-        }
+        h.b.rootItem.setOnClickListener { onLayerClick(index) }
     }
-
-
-    /* ================= COUNT ================= */
 
     override fun getItemCount(): Int = manager.layers.size
 
-    /* ================= DRAG HELPERS ================= */
-
-    fun moveItem(fromPosition: Int, toPosition: Int) {
-        manager.move(fromPosition, toPosition)
-        notifyItemMoved(fromPosition, toPosition)
+    fun moveItem(from: Int, to: Int) {
+        manager.move(
+            manager.layers.lastIndex - from,
+            manager.layers.lastIndex - to
+        )
+        notifyItemMoved(from, to)
     }
 
-    fun selectAfterDrop(position: Int) {
-        val index = manager.layers.lastIndex - position
-        manager.select(index)
+    fun selectAfterDrop(pos: Int) {
+        manager.select(manager.layers.lastIndex - pos)
         notifyDataSetChanged()
     }
 }

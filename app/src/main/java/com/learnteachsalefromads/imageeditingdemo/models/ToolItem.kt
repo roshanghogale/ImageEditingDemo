@@ -14,7 +14,9 @@ data class ToolItem(
 
 enum class ToolAction {
     TOGGLE_VISIBILITY,
-    DELETE,
+    ROTATE,          // ✅ NEW
     DUPLICATE,
+    DELETE,
     LOCK
 }
+
