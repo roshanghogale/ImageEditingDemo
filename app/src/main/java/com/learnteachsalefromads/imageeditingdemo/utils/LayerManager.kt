@@ -1,6 +1,8 @@
 package com.learnteachsalefromads.imageeditingdemo.utils
 
+import android.view.Gravity
 import android.widget.FrameLayout
+import android.widget.ImageView
 import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 
 class LayerManager(private val canvas: FrameLayout) {
@@ -14,7 +16,8 @@ class LayerManager(private val canvas: FrameLayout) {
 
     fun add(layer: LayerItem) {
         layers.add(layer)
-        select(layers.lastIndex)
+        selectedIndex = layers.lastIndex
+        redrawCanvas()
     }
 
     /* ================= SELECT ================= */
@@ -29,9 +32,10 @@ class LayerManager(private val canvas: FrameLayout) {
 
     fun toggleVisibility(index: Int) {
         if (index !in layers.indices) return
+
         layers[index].isVisible = !layers[index].isVisible
 
-        // if selected layer hidden → select top visible
+        // If hidden layer was selected → select top visible
         if (!layers[index].isVisible && index == selectedIndex) {
             selectTopVisible()
         } else {
@@ -44,11 +48,13 @@ class LayerManager(private val canvas: FrameLayout) {
     fun remove(index: Int) {
         if (index !in layers.indices) return
 
-        val layer = layers.removeAt(index)
+        val removed = layers.removeAt(index)
 
-        // 🔥 SAFETY: remove from parent first
-        (layer.container.parent as? FrameLayout)?.removeView(layer.container)
+        // Safety detach
+        (removed.container.parent as? FrameLayout)
+            ?.removeView(removed.container)
 
+        // Adjust selection
         selectTopVisible()
     }
 
@@ -59,29 +65,47 @@ class LayerManager(private val canvas: FrameLayout) {
 
         val original = layers[index]
 
-        val newImage = android.widget.ImageView(canvas.context).apply {
+        val imageCopy = ImageView(canvas.context).apply {
             adjustViewBounds = true
-            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            original.imageView.drawable?.constantState?.newDrawable()?.let {
-                setImageDrawable(it)
-            }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            original.imageView.drawable
+                ?.constantState
+                ?.newDrawable()
+                ?.mutate()
+                ?.let { setImageDrawable(it) }
         }
 
-        val newContainer = FrameLayout(canvas.context).apply {
-            addView(newImage)
+        val containerCopy = FrameLayout(canvas.context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+
+            clipChildren = false
+            clipToPadding = false
+
+            addView(
+                imageCopy,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER
+                )
+            )
         }
 
         val copy = LayerItem(
             name = "${original.name} Copy",
-            container = newContainer,
-            imageView = newImage,
-            rotateHandle = original.rotateHandle, // kept for model compatibility
-            isVisible = original.isVisible,
-            isLocked = original.isLocked
+            container = containerCopy,
+            imageView = imageCopy,
+            isVisible = true,
+            isLocked = false
         )
 
-        layers.add(index + 1, copy)
-        selectedIndex = index + 1
+        // 🔥 Always add duplicate to TOP
+        layers.add(copy)
+        selectedIndex = layers.lastIndex
+
         redrawCanvas()
     }
 
@@ -90,13 +114,13 @@ class LayerManager(private val canvas: FrameLayout) {
     fun redrawCanvas() {
         canvas.removeAllViews()
 
-        // 🔥 CORE RULE:
-        // Only draw layers UP TO selected index
         layers.forEachIndexed { index, layer ->
 
             // Safety: detach before re-adding
-            (layer.container.parent as? FrameLayout)?.removeView(layer.container)
+            (layer.container.parent as? FrameLayout)
+                ?.removeView(layer.container)
 
+            // Only draw visible layers up to selected index
             if (layer.isVisible && index <= selectedIndex) {
                 canvas.addView(layer.container)
             }
@@ -113,12 +137,13 @@ class LayerManager(private val canvas: FrameLayout) {
                 return
             }
         }
+
+        // No visible layers left
         selectedIndex = -1
         redrawCanvas()
     }
 
-    /* ================= Move ================= */
-
+    /* ================= REORDER ================= */
 
     fun move(fromIndex: Int, toIndex: Int) {
         if (fromIndex !in layers.indices || toIndex !in layers.indices) return
