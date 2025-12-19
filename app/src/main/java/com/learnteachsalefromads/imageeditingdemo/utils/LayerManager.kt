@@ -8,11 +8,8 @@ import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 class LayerManager(private val canvas: FrameLayout) {
 
     val layers = mutableListOf<LayerItem>()
-
     var selectedIndex = -1
         private set
-
-    /* ================= ADD ================= */
 
     fun add(layer: LayerItem) {
         layers.add(layer)
@@ -20,59 +17,38 @@ class LayerManager(private val canvas: FrameLayout) {
         redrawCanvas()
     }
 
-    /* ================= SELECT ================= */
-
     fun select(index: Int) {
         if (index !in layers.indices) return
         selectedIndex = index
         redrawCanvas()
     }
 
-    /* ================= VISIBILITY ================= */
-
     fun toggleVisibility(index: Int) {
         if (index !in layers.indices) return
-
         layers[index].isVisible = !layers[index].isVisible
-
-        // If hidden layer was selected → select top visible
         if (!layers[index].isVisible && index == selectedIndex) {
             selectTopVisible()
-        } else {
-            redrawCanvas()
-        }
+        } else redrawCanvas()
     }
-
-    /* ================= REMOVE ================= */
 
     fun remove(index: Int) {
         if (index !in layers.indices) return
-
         val removed = layers.removeAt(index)
-
-        // Safety detach
-        (removed.container.parent as? FrameLayout)
-            ?.removeView(removed.container)
-
-        // Adjust selection
+        (removed.container.parent as? FrameLayout)?.removeView(removed.container)
         selectTopVisible()
     }
 
-    /* ================= DUPLICATE ================= */
-
     fun duplicate(index: Int) {
         if (index !in layers.indices) return
-
         val original = layers[index]
 
         val imageCopy = ImageView(canvas.context).apply {
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
             original.imageView.drawable
-                ?.constantState
-                ?.newDrawable()
-                ?.mutate()
+                ?.constantState?.newDrawable()?.mutate()
                 ?.let { setImageDrawable(it) }
+            rotation = original.rotation
         }
 
         val containerCopy = FrameLayout(canvas.context).apply {
@@ -80,10 +56,8 @@ class LayerManager(private val canvas: FrameLayout) {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-
             clipChildren = false
             clipToPadding = false
-
             addView(
                 imageCopy,
                 FrameLayout.LayoutParams(
@@ -98,36 +72,23 @@ class LayerManager(private val canvas: FrameLayout) {
             name = "${original.name} Copy",
             container = containerCopy,
             imageView = imageCopy,
-            isVisible = true,
-            isLocked = false
+            rotation = original.rotation
         )
 
-        // 🔥 Always add duplicate to TOP
         layers.add(copy)
         selectedIndex = layers.lastIndex
-
         redrawCanvas()
     }
 
-    /* ================= DRAW ================= */
-
     fun redrawCanvas() {
         canvas.removeAllViews()
-
         layers.forEachIndexed { index, layer ->
-
-            // Safety: detach before re-adding
-            (layer.container.parent as? FrameLayout)
-                ?.removeView(layer.container)
-
-            // Only draw visible layers up to selected index
+            (layer.container.parent as? FrameLayout)?.removeView(layer.container)
             if (layer.isVisible && index <= selectedIndex) {
                 canvas.addView(layer.container)
             }
         }
     }
-
-    /* ================= HELPERS ================= */
 
     private fun selectTopVisible() {
         for (i in layers.lastIndex downTo 0) {
@@ -137,20 +98,14 @@ class LayerManager(private val canvas: FrameLayout) {
                 return
             }
         }
-
-        // No visible layers left
         selectedIndex = -1
         redrawCanvas()
     }
 
-    /* ================= REORDER ================= */
-
     fun move(fromIndex: Int, toIndex: Int) {
         if (fromIndex !in layers.indices || toIndex !in layers.indices) return
-
         val item = layers.removeAt(fromIndex)
         layers.add(toIndex, item)
-
         selectedIndex = toIndex
         redrawCanvas()
     }

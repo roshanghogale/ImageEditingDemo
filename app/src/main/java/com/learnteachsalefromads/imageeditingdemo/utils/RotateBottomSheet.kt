@@ -9,18 +9,17 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.learnteachsalefromads.imageeditingdemo.R
+import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 import java.util.Stack
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class RotateBottomSheet(
-    private val targetProvider: () -> View?
+    private val layerProvider: () -> LayerItem?
 ) : BottomSheetDialogFragment() {
 
     private val undoStack = Stack<Float>()
     private val redoStack = Stack<Float>()
-
-    private var committedRotation = 0f
     private var updating = false
 
     override fun onCreateView(
@@ -31,6 +30,9 @@ class RotateBottomSheet(
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
+        val layer = layerProvider() ?: return
+        val image: ImageView = layer.imageView
+
         val slider = view.findViewById<Slider>(R.id.sliderRotate)
         val edtAngle = view.findViewById<TextInputEditText>(R.id.edtAngle)
 
@@ -39,8 +41,6 @@ class RotateBottomSheet(
         val btnUndo = view.findViewById<View>(R.id.btnUndo)
         val btnRedo = view.findViewById<View>(R.id.btnRedo)
 
-        val image = targetProvider() as? ImageView ?: return
-
         image.post {
             image.pivotX = image.width / 2f
             image.pivotY = image.height / 2f
@@ -48,6 +48,7 @@ class RotateBottomSheet(
 
         fun applyRotation(value: Float) {
             val clamped = value.coerceIn(-180f, 180f)
+            layer.rotation = clamped
             image.rotation = clamped
 
             updating = true
@@ -58,43 +59,49 @@ class RotateBottomSheet(
 
         fun commit(value: Float) {
             val clamped = value.coerceIn(-180f, 180f)
-            if (abs(committedRotation - clamped) < 0.5f) return
-            undoStack.push(committedRotation)
+            if (undoStack.isNotEmpty() &&
+                abs(undoStack.peek() - clamped) < 0.5f) return
+            undoStack.push(layer.rotation)
             redoStack.clear()
-            committedRotation = clamped
+            layer.rotation = clamped
         }
 
-        committedRotation = image.rotation
-        applyRotation(committedRotation)
+        applyRotation(layer.rotation)
 
         slider.addOnChangeListener { _, v, fromUser ->
             if (!fromUser || updating) return@addOnChangeListener
             applyRotation(v)
         }
 
+        edtAngle.setOnEditorActionListener { _, _, _ ->
+            if (updating) return@setOnEditorActionListener true
+            val v = edtAngle.text?.toString()?.toFloatOrNull() ?: return@setOnEditorActionListener true
+            commit(v)
+            applyRotation(v)
+            true
+        }
+
         btnLeft.setOnClickListener {
-            commit(committedRotation - 90f)
-            applyRotation(committedRotation)
+            commit(layer.rotation - 90f)
+            applyRotation(layer.rotation)
         }
 
         btnRight.setOnClickListener {
-            commit(committedRotation + 90f)
-            applyRotation(committedRotation)
+            commit(layer.rotation + 90f)
+            applyRotation(layer.rotation)
         }
 
         btnUndo.setOnClickListener {
             if (undoStack.isNotEmpty()) {
-                redoStack.push(committedRotation)
-                committedRotation = undoStack.pop()
-                applyRotation(committedRotation)
+                redoStack.push(layer.rotation)
+                applyRotation(undoStack.pop())
             }
         }
 
         btnRedo.setOnClickListener {
             if (redoStack.isNotEmpty()) {
-                undoStack.push(committedRotation)
-                committedRotation = redoStack.pop()
-                applyRotation(committedRotation)
+                undoStack.push(layer.rotation)
+                applyRotation(redoStack.pop())
             }
         }
     }

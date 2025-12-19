@@ -70,15 +70,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /* ---------- Bind ---------- */
+        /* ---------- Bind Views ---------- */
         canvasLayout = findViewById(R.id.canvasLayout)
         btnAddLayerInline = findViewById(R.id.btnAddLayerInline)
         layerRecycler = findViewById(R.id.layerRecycler)
         toolRecycler = findViewById(R.id.toolRecycler)
 
+        /* ---------- Managers ---------- */
         layerManager = LayerManager(canvasLayout)
 
-        /* ---------- Layers ---------- */
+        /* ---------- Layer Adapter ---------- */
         layerAdapter = LayerAdapter(layerManager) { index ->
             handleLayerClick(index)
         }
@@ -90,21 +91,19 @@ class MainActivity : AppCompatActivity() {
             overScrollMode = RecyclerView.OVER_SCROLL_NEVER
         }
 
-        /* ---------- Tools ---------- */
+        /* ---------- Tool Adapter ---------- */
         toolAdapter = ToolAdapter(createTools(), ::handleToolAction)
 
         toolRecycler.apply {
             layoutManager =
                 LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
             adapter = toolAdapter
-
-            // 🚀 IMPORTANT: Disable animations to prevent icon fade
             itemAnimator = null
-
             visibility = View.GONE
         }
 
         attachDragAndDrop()
+        attachCanvasGestures()
 
         btnAddLayerInline.setOnClickListener {
             checkAndRequestPermissions()
@@ -114,23 +113,22 @@ class MainActivity : AppCompatActivity() {
             hideTools()
             lastClickedLayerIndex = -1
         }
-
-        attachCanvasGestures()
     }
 
-    private fun attachCanvasGestures() {
+    /* ================= Canvas Gestures ================= */
 
-        val gesture = CanvasGestureController(this) {
+    private fun attachCanvasGestures() {
+        val gestureController = CanvasGestureController(this) {
             layerManager.layers.getOrNull(layerManager.selectedIndex)
         }
 
         canvasLayout.setOnTouchListener { _, event ->
-            gesture.onTouch(event)
+            gestureController.onTouch(event)
             true
         }
     }
 
-    /* ================= Layer Click ================= */
+    /* ================= Layer Selection ================= */
 
     private fun handleLayerClick(index: Int) {
         if (layerManager.selectedIndex == index && lastClickedLayerIndex == index) {
@@ -164,7 +162,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun createTools() = mutableListOf(
         ToolItem(ToolAction.TOGGLE_VISIBILITY, R.drawable.ic_eye_closed, "Visibility"),
-        ToolItem(ToolAction.ROTATE, R.drawable.ic_rotate, "Rotate"), // ✅ NEW
+        ToolItem(ToolAction.ROTATE, R.drawable.ic_rotate, "Rotate"),
         ToolItem(ToolAction.DUPLICATE, R.drawable.ic_duplicate, "Duplicate"),
         ToolItem(ToolAction.DELETE, R.drawable.ic_delete, "Delete")
     )
@@ -172,10 +170,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateVisibilityToolIcon() {
         val index = layerManager.selectedIndex
         if (index == -1) return
-
-        toolAdapter.updateVisibilityTool(
-            layerManager.layers[index].isVisible
-        )
+        toolAdapter.updateVisibilityTool(layerManager.layers[index].isVisible)
     }
 
     private fun handleToolAction(tool: ToolItem) {
@@ -186,7 +181,7 @@ class MainActivity : AppCompatActivity() {
 
             ToolAction.ROTATE -> {
                 RotateBottomSheet {
-                    layerManager.layers.getOrNull(index)?.imageView
+                    layerManager.layers.getOrNull(index)
                 }.show(supportFragmentManager, "rotate")
             }
 
@@ -198,11 +193,7 @@ class MainActivity : AppCompatActivity() {
 
             ToolAction.DUPLICATE -> {
                 layerManager.duplicate(index)
-
-                // new top item → adapter position 0
-                layerAdapter.notifyItemInserted(0)
                 layerAdapter.notifyDataSetChanged()
-
                 scrollToSelected()
             }
 
@@ -246,7 +237,6 @@ class MainActivity : AppCompatActivity() {
 
     /* ================= Add Image ================= */
 
-    // unchanged EXCEPT addImageLayer()
     private fun addImageLayer(uri: Uri) {
 
         val image = ImageView(this).apply {
@@ -255,16 +245,13 @@ class MainActivity : AppCompatActivity() {
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
 
-        // 🔥 FULL CANVAS CONTAINER
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-
             clipChildren = false
             clipToPadding = false
-
             addView(
                 image,
                 FrameLayout.LayoutParams(
@@ -279,7 +266,8 @@ class MainActivity : AppCompatActivity() {
             LayerItem(
                 name = "Layer ${layerManager.layers.size + 1}",
                 container = container,
-                imageView = image
+                imageView = image,
+                rotation = 0f
             )
         )
 

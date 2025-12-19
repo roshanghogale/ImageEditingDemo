@@ -22,10 +22,8 @@ class CanvasGestureController(
     private var isScaling = false
 
     private val scaleDetector =
-        ScaleGestureDetector(
-            context,
+        ScaleGestureDetector(context,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-
                 override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
                     isScaling = true
                     return true
@@ -41,8 +39,7 @@ class CanvasGestureController(
                     isScaling = false
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
-            }
-        )
+            })
 
     fun onTouch(event: MotionEvent) {
 
@@ -71,12 +68,8 @@ class CanvasGestureController(
                     val x = event.getX(idx)
                     val y = event.getY(idx)
 
-                    val dx = x - lastX
-                    val dy = y - lastY
-
-                    // ✅ DO NOT rotate delta
-                    image.translationX += dx
-                    image.translationY += dy
+                    image.translationX += x - lastX
+                    image.translationY += y - lastY
 
                     lastX = x
                     lastY = y
@@ -112,10 +105,8 @@ class CanvasGestureController(
     private fun clamp(image: View, canvas: View) {
         val sw = image.width * image.scaleX
         val sh = image.height * image.scaleY
-
         val maxX = max(0f, (canvas.width - sw) / 2f)
         val maxY = max(0f, (canvas.height - sh) / 2f)
-
         image.translationX = image.translationX.coerceIn(-maxX, maxX)
         image.translationY = image.translationY.coerceIn(-maxY, maxY)
     }
