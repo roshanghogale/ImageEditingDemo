@@ -22,7 +22,8 @@ class CanvasGestureController(
     private var isScaling = false
 
     private val scaleDetector =
-        ScaleGestureDetector(context,
+        ScaleGestureDetector(
+            context,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
 
                 override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
@@ -40,7 +41,8 @@ class CanvasGestureController(
                     isScaling = false
                     activePointerId = MotionEvent.INVALID_POINTER_ID
                 }
-            })
+            }
+        )
 
     fun onTouch(event: MotionEvent) {
 
@@ -59,6 +61,7 @@ class CanvasGestureController(
             }
 
             MotionEvent.ACTION_MOVE -> {
+
                 applySmoothScale(image)
 
                 if (!isScaling) {
@@ -68,8 +71,12 @@ class CanvasGestureController(
                     val x = event.getX(idx)
                     val y = event.getY(idx)
 
-                    image.translationX += x - lastX
-                    image.translationY += y - lastY
+                    val dx = x - lastX
+                    val dy = y - lastY
+
+                    // ✅ DO NOT rotate delta
+                    image.translationX += dx
+                    image.translationY += dy
 
                     lastX = x
                     lastY = y
@@ -96,7 +103,7 @@ class CanvasGestureController(
     }
 
     private fun applySmoothScale(image: View) {
-        if (kotlin.math.abs(currentScale - targetScale) < 0.001f) return
+        if (abs(currentScale - targetScale) < 0.001f) return
         currentScale += (targetScale - currentScale) * 0.15f
         image.scaleX = currentScale
         image.scaleY = currentScale
@@ -106,11 +113,10 @@ class CanvasGestureController(
         val sw = image.width * image.scaleX
         val sh = image.height * image.scaleY
 
-        val maxX = kotlin.math.max(0f, (canvas.width - sw) / 2f)
-        val maxY = kotlin.math.max(0f, (canvas.height - sh) / 2f)
+        val maxX = max(0f, (canvas.width - sw) / 2f)
+        val maxY = max(0f, (canvas.height - sh) / 2f)
 
         image.translationX = image.translationX.coerceIn(-maxX, maxX)
         image.translationY = image.translationY.coerceIn(-maxY, maxY)
     }
 }
-

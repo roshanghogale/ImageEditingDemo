@@ -17,15 +17,10 @@ class RotateBottomSheet(
     private val targetProvider: () -> View?
 ) : BottomSheetDialogFragment() {
 
-    /* ================= HISTORY ================= */
-
     private val undoStack = Stack<Float>()
     private val redoStack = Stack<Float>()
 
-    /** Last committed (stable) value */
     private var committedRotation = 0f
-
-    /** Prevent recursive UI updates */
     private var updating = false
 
     override fun onCreateView(
@@ -44,21 +39,14 @@ class RotateBottomSheet(
         val btnUndo = view.findViewById<View>(R.id.btnUndo)
         val btnRedo = view.findViewById<View>(R.id.btnRedo)
 
-        /* ===================================================== */
-        /* 🔥 IMPORTANT CHANGE: rotate IMAGE, not container      */
-        /* ===================================================== */
-
         val image = targetProvider() as? ImageView ?: return
 
-        // Ensure pivot is IMAGE CENTER
         image.post {
             image.pivotX = image.width / 2f
             image.pivotY = image.height / 2f
         }
 
-        /* ================= CORE APPLY ================= */
-
-        fun applyRotationPreview(value: Float) {
+        fun applyRotation(value: Float) {
             val clamped = value.coerceIn(-180f, 180f)
             image.rotation = clamped
 
@@ -68,84 +56,45 @@ class RotateBottomSheet(
             updating = false
         }
 
-        fun commitRotation(newValue: Float) {
-            val clamped = newValue.coerceIn(-180f, 180f)
-
-            // Prevent duplicate history entries
+        fun commit(value: Float) {
+            val clamped = value.coerceIn(-180f, 180f)
             if (abs(committedRotation - clamped) < 0.5f) return
-
             undoStack.push(committedRotation)
             redoStack.clear()
             committedRotation = clamped
         }
 
-        /* ================= INITIAL SYNC ================= */
-
         committedRotation = image.rotation
-        applyRotationPreview(committedRotation)
+        applyRotation(committedRotation)
 
-        /* ================= SLIDER ================= */
-
-        slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
-
-            override fun onStartTrackingTouch(slider: Slider) {
-                // no-op (kept for structure)
-            }
-
-            override fun onStopTrackingTouch(slider: Slider) {
-                commitRotation(slider.value)
-            }
-        })
-
-        slider.addOnChangeListener { _, value, fromUser ->
+        slider.addOnChangeListener { _, v, fromUser ->
             if (!fromUser || updating) return@addOnChangeListener
-            applyRotationPreview(value)
+            applyRotation(v)
         }
-
-        /* ================= TEXT INPUT ================= */
-
-        edtAngle.setOnEditorActionListener { _, _, _ ->
-            if (updating) return@setOnEditorActionListener true
-
-            val v = edtAngle.text?.toString()?.toFloatOrNull()
-                ?: return@setOnEditorActionListener true
-
-            commitRotation(v)
-            applyRotationPreview(v)
-            true
-        }
-
-        /* ================= QUICK ROTATE ================= */
 
         btnLeft.setOnClickListener {
-            val newVal = committedRotation - 90f
-            commitRotation(newVal)
-            applyRotationPreview(newVal)
+            commit(committedRotation - 90f)
+            applyRotation(committedRotation)
         }
 
         btnRight.setOnClickListener {
-            val newVal = committedRotation + 90f
-            commitRotation(newVal)
-            applyRotationPreview(newVal)
+            commit(committedRotation + 90f)
+            applyRotation(committedRotation)
         }
-
-        /* ================= UNDO ================= */
 
         btnUndo.setOnClickListener {
             if (undoStack.isNotEmpty()) {
                 redoStack.push(committedRotation)
                 committedRotation = undoStack.pop()
-                applyRotationPreview(committedRotation)
+                applyRotation(committedRotation)
             }
         }
-
-        /* ================= REDO ================= */
 
         btnRedo.setOnClickListener {
             if (redoStack.isNotEmpty()) {
                 undoStack.push(committedRotation)
                 committedRotation = redoStack.pop()
-                applyRotationPreview(committedRotation)
+                applyRotation(committedRotation)
             }
         }
     }
