@@ -1,5 +1,6 @@
 package com.learnteachsalefromads.imageeditingdemo.utils
 
+import android.content.Context
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
@@ -40,6 +41,19 @@ class LayerManager(private val canvas: FrameLayout) {
             selectTopVisibleLayer()
         } else {
             redrawCanvas()
+        }
+    }
+
+    fun attachTransform(context: Context) {
+        layers.forEachIndexed { index, layer ->
+            layer.imageView.setOnTouchListener(null)
+
+            if (index == selectedIndex && !layer.isLocked) {
+                val controller = LayerTransformController(context, layer.imageView)
+                layer.imageView.setOnTouchListener { _, event ->
+                    controller.onTouch(event)
+                }
+            }
         }
     }
 
@@ -104,6 +118,8 @@ class LayerManager(private val canvas: FrameLayout) {
                 canvas.addView(l.imageView)
             }
         }
+
+        attachTransform(canvas.context)
     }
 
     fun adapterPositionForSelected(): Int =
