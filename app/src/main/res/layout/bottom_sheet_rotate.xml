@@ -1,88 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="20dp"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:layout_margin="12dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="10dp">
 
-    <!-- TITLE -->
-    <TextView
-        android:text="Rotate"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"/>
-
-    <!-- SLIDER -->
-    <SeekBar
-        android:id="@+id/seekRotate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:max="360"/>
-
-    <!-- DEGREE DISPLAY -->
-    <EditText
-        android:id="@+id/edtDegree"
-        android:layout_width="80dp"
-        android:layout_height="40dp"
-        android:layout_gravity="center"
-        android:gravity="center"
-        android:inputType="number"
-        android:hint="0°"
-        android:background="@drawable/bg_layer_item_selected"
-        android:layout_marginTop="8dp"/>
-
-    <!-- QUICK ROTATE -->
     <LinearLayout
-        android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp">
+        android:orientation="vertical"
+        android:padding="20dp">
 
-        <Button
-            android:id="@+id/btnLeft90"
-            android:text="⟲ 90°"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="44dp"/>
+        <!-- TITLE -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rotate"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:paddingBottom="16dp" />
 
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp"/>
+        <!-- SLIDER -->
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderRotate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="Rotate angle"
+            app:trackColorActive="@color/blue_tint"
+            android:value="0"
+            android:valueFrom="-180"
+            android:valueTo="180"
+            android:stepSize="0" />
 
-        <Button
-            android:id="@+id/btnRight90"
-            android:text="⟳ 90°"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="44dp"/>
+        <!-- ANGLE INPUT -->
+        <com.google.android.material.textfield.TextInputLayout
+            style="?attr/textInputFilledStyle"
+            android:layout_width="140dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:hint="Angle (°)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtAngle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="numberSigned"
+                android:gravity="center" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- QUICK ROTATE -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="20dp">
+
+            <Button
+                android:id="@+id/btnRotateLeft"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/blue_tint"
+                android:layout_weight="1"
+                android:text="Left 90°"
+                app:icon="@drawable/ic_rotate_left" />
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="1dp" />
+
+            <Button
+                android:id="@+id/btnRotateRight"
+                android:backgroundTint="@color/blue_tint"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Right 90°"
+                app:icon="@drawable/ic_rotate_right" />
+        </LinearLayout>
+
+        <!-- DIVIDER -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="?attr/colorOutline" />
+
+        <!-- UNDO / REDO -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnUndo"
+                android:backgroundTint="@color/blue_tint"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Undo"
+                app:icon="@drawable/ic_undo" />
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="1dp" />
+
+            <Button
+                android:id="@+id/btnRedo"
+                android:backgroundTint="@color/blue_tint"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Redo"
+                app:icon="@drawable/ic_redo" />
+        </LinearLayout>
+
     </LinearLayout>
-
-    <!-- UNDO / REDO -->
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp">
-
-        <Button
-            android:id="@+id/btnUndo"
-            android:text="Undo"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="44dp"/>
-
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp"/>
-
-        <Button
-            android:id="@+id/btnRedo"
-            android:text="Redo"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="44dp"/>
-    </LinearLayout>
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -29,6 +29,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:gravity="center"
         android:padding="8dp">
 
         <!-- ADD IMAGE BUTTON -->
@@ -36,8 +37,9 @@
             android:id="@+id/btnAddLayerInline"
             android:layout_width="48dp"
             android:layout_height="48dp"
+            android:layout_marginEnd="12dp"
             android:src="@drawable/ic_add"
-            android:background="@drawable/bg_layer_item"
+            android:background="@drawable/bg_layer_item_selected"
             android:padding="12dp" />
 
         <!-- HORIZONTAL LAYER LIST -->

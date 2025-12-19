@@ -120,17 +120,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun attachCanvasGestures() {
 
-        val gesture = CanvasGestureController(
-            this,
-            { layerManager.layers.getOrNull(layerManager.selectedIndex)?.container }
-        )
+        val gesture = CanvasGestureController(this) {
+            layerManager.layers.getOrNull(layerManager.selectedIndex)
+        }
 
         canvasLayout.setOnTouchListener { _, event ->
             gesture.onTouch(event)
             true
         }
     }
-
 
     /* ================= Layer Click ================= */
 
@@ -188,23 +186,36 @@ class MainActivity : AppCompatActivity() {
 
             ToolAction.ROTATE -> {
                 RotateBottomSheet {
-                    layerManager.layers.getOrNull(index)?.container
+                    layerManager.layers.getOrNull(index)?.imageView
                 }.show(supportFragmentManager, "rotate")
             }
 
             ToolAction.TOGGLE_VISIBILITY -> {
                 layerManager.toggleVisibility(index)
+                layerAdapter.notifyDataSetChanged()
                 updateVisibilityToolIcon()
             }
 
-            ToolAction.DUPLICATE -> layerManager.duplicate(index)
-            ToolAction.DELETE -> layerManager.remove(index)
+            ToolAction.DUPLICATE -> {
+                layerManager.duplicate(index)
+
+                // new top item → adapter position 0
+                layerAdapter.notifyItemInserted(0)
+                layerAdapter.notifyDataSetChanged()
+
+                scrollToSelected()
+            }
+
+            ToolAction.DELETE -> {
+                layerManager.remove(index)
+                layerAdapter.notifyDataSetChanged()
+            }
+
             ToolAction.LOCK -> Unit
         }
 
         hideTools()
     }
-
 
     /* ================= Drag & Drop ================= */
 
@@ -244,16 +255,13 @@ class MainActivity : AppCompatActivity() {
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
 
-        val rotateHandle = ImageView(this).apply {
-            setImageResource(R.drawable.ic_rotate)
-            layoutParams = FrameLayout.LayoutParams(48, 48).apply {
-                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                topMargin = -48
-            }
-            visibility = View.GONE
-        }
-
+        // 🔥 FULL CANVAS CONTAINER
         val container = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+
             clipChildren = false
             clipToPadding = false
 
@@ -265,16 +273,13 @@ class MainActivity : AppCompatActivity() {
                     Gravity.CENTER
                 )
             )
-
-            addView(rotateHandle)
         }
 
         layerManager.add(
             LayerItem(
                 name = "Layer ${layerManager.layers.size + 1}",
                 container = container,
-                imageView = image,
-                rotateHandle = rotateHandle
+                imageView = image
             )
         )
 

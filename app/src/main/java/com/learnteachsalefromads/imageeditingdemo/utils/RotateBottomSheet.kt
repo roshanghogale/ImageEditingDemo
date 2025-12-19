@@ -4,81 +4,149 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.SeekBar
+import android.widget.ImageView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.slider.Slider
+import com.google.android.material.textfield.TextInputEditText
 import com.learnteachsalefromads.imageeditingdemo.R
+import java.util.Stack
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class RotateBottomSheet(
-    private val getTarget: () -> View?
+    private val targetProvider: () -> View?
 ) : BottomSheetDialogFragment() {
 
-    private val history = mutableListOf<Float>()
-    private var historyIndex = -1
+    /* ================= HISTORY ================= */
+
+    private val undoStack = Stack<Float>()
+    private val redoStack = Stack<Float>()
+
+    /** Last committed (stable) value */
+    private var committedRotation = 0f
+
+    /** Prevent recursive UI updates */
+    private var updating = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        val v = inflater.inflate(R.layout.bottom_sheet_rotate, container, false)
+    ): View = inflater.inflate(R.layout.bottom_sheet_rotate, container, false)
 
-        val seek = v.findViewById<SeekBar>(R.id.seekRotate)
-        val edt = v.findViewById<EditText>(R.id.edtDegree)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
-        fun apply(angle: Float) {
-            getTarget()?.rotation = angle
-            record(angle)
-            seek.progress = angle.toInt()
-            edt.setText(angle.toInt().toString())
+        val slider = view.findViewById<Slider>(R.id.sliderRotate)
+        val edtAngle = view.findViewById<TextInputEditText>(R.id.edtAngle)
+
+        val btnLeft = view.findViewById<View>(R.id.btnRotateLeft)
+        val btnRight = view.findViewById<View>(R.id.btnRotateRight)
+        val btnUndo = view.findViewById<View>(R.id.btnUndo)
+        val btnRedo = view.findViewById<View>(R.id.btnRedo)
+
+        /* ===================================================== */
+        /* 🔥 IMPORTANT CHANGE: rotate IMAGE, not container      */
+        /* ===================================================== */
+
+        val image = targetProvider() as? ImageView ?: return
+
+        // Ensure pivot is IMAGE CENTER
+        image.post {
+            image.pivotX = image.width / 2f
+            image.pivotY = image.height / 2f
         }
 
-        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, value: Int, fromUser: Boolean) {
-                if (fromUser) apply(value.toFloat())
+        /* ================= CORE APPLY ================= */
+
+        fun applyRotationPreview(value: Float) {
+            val clamped = value.coerceIn(-180f, 180f)
+            image.rotation = clamped
+
+            updating = true
+            slider.value = clamped
+            edtAngle.setText(clamped.roundToInt().toString())
+            updating = false
+        }
+
+        fun commitRotation(newValue: Float) {
+            val clamped = newValue.coerceIn(-180f, 180f)
+
+            // Prevent duplicate history entries
+            if (abs(committedRotation - clamped) < 0.5f) return
+
+            undoStack.push(committedRotation)
+            redoStack.clear()
+            committedRotation = clamped
+        }
+
+        /* ================= INITIAL SYNC ================= */
+
+        committedRotation = image.rotation
+        applyRotationPreview(committedRotation)
+
+        /* ================= SLIDER ================= */
+
+        slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+
+            override fun onStartTrackingTouch(slider: Slider) {
+                // no-op (kept for structure)
             }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
+
+            override fun onStopTrackingTouch(slider: Slider) {
+                commitRotation(slider.value)
+            }
         })
 
-        edt.setOnEditorActionListener { _, _, _ ->
-            edt.text.toString().toFloatOrNull()?.let {
-                apply(it.coerceIn(0f, 360f))
-            }
+        slider.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser || updating) return@addOnChangeListener
+            applyRotationPreview(value)
+        }
+
+        /* ================= TEXT INPUT ================= */
+
+        edtAngle.setOnEditorActionListener { _, _, _ ->
+            if (updating) return@setOnEditorActionListener true
+
+            val v = edtAngle.text?.toString()?.toFloatOrNull()
+                ?: return@setOnEditorActionListener true
+
+            commitRotation(v)
+            applyRotationPreview(v)
             true
         }
 
-        v.findViewById<Button>(R.id.btnLeft90).setOnClickListener {
-            getTarget()?.let { apply(it.rotation - 90f) }
+        /* ================= QUICK ROTATE ================= */
+
+        btnLeft.setOnClickListener {
+            val newVal = committedRotation - 90f
+            commitRotation(newVal)
+            applyRotationPreview(newVal)
         }
 
-        v.findViewById<Button>(R.id.btnRight90).setOnClickListener {
-            getTarget()?.let { apply(it.rotation + 90f) }
+        btnRight.setOnClickListener {
+            val newVal = committedRotation + 90f
+            commitRotation(newVal)
+            applyRotationPreview(newVal)
         }
 
-        v.findViewById<Button>(R.id.btnUndo).setOnClickListener {
-            if (historyIndex > 0) {
-                historyIndex--
-                getTarget()?.rotation = history[historyIndex]
+        /* ================= UNDO ================= */
+
+        btnUndo.setOnClickListener {
+            if (undoStack.isNotEmpty()) {
+                redoStack.push(committedRotation)
+                committedRotation = undoStack.pop()
+                applyRotationPreview(committedRotation)
             }
         }
 
-        v.findViewById<Button>(R.id.btnRedo).setOnClickListener {
-            if (historyIndex < history.lastIndex) {
-                historyIndex++
-                getTarget()?.rotation = history[historyIndex]
+        /* ================= REDO ================= */
+
+        btnRedo.setOnClickListener {
+            if (redoStack.isNotEmpty()) {
+                undoStack.push(committedRotation)
+                committedRotation = redoStack.pop()
+                applyRotationPreview(committedRotation)
             }
         }
-
-        return v
-    }
-
-    private fun record(angle: Float) {
-        if (historyIndex < history.lastIndex) {
-            history.subList(historyIndex + 1, history.size).clear()
-        }
-        history.add(angle)
-        historyIndex = history.lastIndex
     }
 }
