@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ImageEditingDemo</string>
+    <string name="add_image">Add Image</string>
+</resources>
