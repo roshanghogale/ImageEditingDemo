@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.widget.FrameLayout
@@ -24,12 +23,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.learnteachsalefromads.imageeditingdemo.R
 import com.learnteachsalefromads.imageeditingdemo.adapters.LayerAdapter
 import com.learnteachsalefromads.imageeditingdemo.adapters.ToolAdapter
-import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
+import com.learnteachsalefromads.imageeditingdemo.controllers.CanvasController
+import com.learnteachsalefromads.imageeditingdemo.controllers.LayerInteractionController
+import com.learnteachsalefromads.imageeditingdemo.controllers.ToolController
+import com.learnteachsalefromads.imageeditingdemo.controllers.UiVisibilityController
+import com.learnteachsalefromads.imageeditingdemo.editor.EditorContext
+import com.learnteachsalefromads.imageeditingdemo.editor.actions.AddLayerAction
+import com.learnteachsalefromads.imageeditingdemo.layer.LayerFactory
+import com.learnteachsalefromads.imageeditingdemo.layer.LayerManager
 import com.learnteachsalefromads.imageeditingdemo.models.ToolAction
 import com.learnteachsalefromads.imageeditingdemo.models.ToolItem
-import com.learnteachsalefromads.imageeditingdemo.utils.CanvasGestureController
-import com.learnteachsalefromads.imageeditingdemo.utils.LayerManager
-import com.learnteachsalefromads.imageeditingdemo.utils.RotateBottomSheet
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,15 +44,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layerRecycler: RecyclerView
     private lateinit var toolRecycler: RecyclerView
 
-    /* ================= STATE ================= */
-
-    private var lastClickedLayerIndex = -1
-
-    /* ================= SYSTEM ================= */
+    /* ================= CORE ================= */
 
     private lateinit var layerManager: LayerManager
     private lateinit var layerAdapter: LayerAdapter
     private lateinit var toolAdapter: ToolAdapter
+
+    /* ================= CONTROLLERS ================= */
+
+    private lateinit var canvasController: CanvasController
+    private lateinit var uiVisibilityController: UiVisibilityController
+    private lateinit var layerInteractionController: LayerInteractionController
+    private lateinit var toolController: ToolController
+
+    private val layerFactory = LayerFactory()
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -60,8 +68,26 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        /* ---------- Insets ---------- */
+        bindViews()
+        setupInsets()
+        setupManagers()
+        setupRecyclerViews()
+        setupControllers()
+        attachDragAndDrop()
+        setupClicks()
+    }
+
+    /* ================= SETUP ================= */
+
+    private fun bindViews() {
         rootLayout = findViewById(R.id.rootLayout)
+        canvasLayout = findViewById(R.id.canvasLayout)
+        btnAddLayerInline = findViewById(R.id.btnAddLayerInline)
+        layerRecycler = findViewById(R.id.layerRecycler)
+        toolRecycler = findViewById(R.id.toolRecycler)
+    }
+
+    private fun setupInsets() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             rootLayout.setOnApplyWindowInsetsListener { v, insets ->
                 val b = insets.getInsets(WindowInsets.Type.systemBars())
@@ -69,19 +95,16 @@ class MainActivity : AppCompatActivity() {
                 insets
             }
         }
+    }
 
-        /* ---------- Bind Views ---------- */
-        canvasLayout = findViewById(R.id.canvasLayout)
-        btnAddLayerInline = findViewById(R.id.btnAddLayerInline)
-        layerRecycler = findViewById(R.id.layerRecycler)
-        toolRecycler = findViewById(R.id.toolRecycler)
-
-        /* ---------- Managers ---------- */
+    private fun setupManagers() {
         layerManager = LayerManager(canvasLayout)
+    }
 
-        /* ---------- Layer Adapter ---------- */
+    private fun setupRecyclerViews() {
+
         layerAdapter = LayerAdapter(layerManager) { index ->
-            handleLayerClick(index)
+            layerInteractionController.onLayerClicked(index)
         }
 
         layerRecycler.apply {
@@ -91,8 +114,9 @@ class MainActivity : AppCompatActivity() {
             overScrollMode = RecyclerView.OVER_SCROLL_NEVER
         }
 
-        /* ---------- Tool Adapter ---------- */
-        toolAdapter = ToolAdapter(createTools(), ::handleToolAction)
+        toolAdapter = ToolAdapter(createTools()) {
+            toolController.onToolAction(it)
+        }
 
         toolRecycler.apply {
             layoutManager =
@@ -101,114 +125,53 @@ class MainActivity : AppCompatActivity() {
             itemAnimator = null
             visibility = View.GONE
         }
+    }
 
-        attachDragAndDrop()
-        attachCanvasGestures()
+    private fun setupControllers() {
+
+        uiVisibilityController = UiVisibilityController(toolRecycler)
+
+        layerInteractionController = LayerInteractionController(
+            layerManager,
+            layerAdapter,
+            layerRecycler,
+            uiVisibilityController
+        )
+
+        toolController = ToolController(
+            this,
+            layerManager,
+            layerAdapter,
+            uiVisibilityController
+        )
+
+        canvasController = CanvasController(canvasLayout, layerManager)
+        canvasController.attach()
+    }
+
+    private fun setupClicks() {
 
         btnAddLayerInline.setOnClickListener {
             checkAndRequestPermissions()
         }
 
         canvasLayout.setOnClickListener {
-            hideTools()
-            lastClickedLayerIndex = -1
+            uiVisibilityController.hideTools()
         }
     }
 
-    /* ================= Canvas Gestures ================= */
-
-    private fun attachCanvasGestures() {
-        val gestureController = CanvasGestureController(this) {
-            layerManager.layers.getOrNull(layerManager.selectedIndex)
-        }
-
-        canvasLayout.setOnTouchListener { _, event ->
-            gestureController.onTouch(event)
-            true
-        }
-    }
-
-    /* ================= Layer Selection ================= */
-
-    private fun handleLayerClick(index: Int) {
-        if (layerManager.selectedIndex == index && lastClickedLayerIndex == index) {
-            toggleTools()
-        } else {
-            hideTools()
-            layerManager.select(index)
-        }
-
-        lastClickedLayerIndex = index
-        layerAdapter.notifyDataSetChanged()
-        scrollToSelected()
-        updateVisibilityToolIcon()
-    }
-
-    private fun toggleTools() {
-        toolRecycler.visibility =
-            if (toolRecycler.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-    }
-
-    private fun hideTools() {
-        toolRecycler.visibility = View.GONE
-    }
-
-    private fun scrollToSelected() {
-        val pos = layerManager.adapterPositionForSelected()
-        if (pos != -1) layerRecycler.scrollToPosition(pos)
-    }
-
-    /* ================= Tools ================= */
+    /* ================= TOOLS ================= */
 
     private fun createTools() = mutableListOf(
+        ToolItem(ToolAction.UNDO, R.drawable.ic_undo, "Undo"),
+        ToolItem(ToolAction.REDO, R.drawable.ic_redo, "Redo"),
         ToolItem(ToolAction.TOGGLE_VISIBILITY, R.drawable.ic_eye_closed, "Visibility"),
         ToolItem(ToolAction.ROTATE, R.drawable.ic_rotate, "Rotate"),
         ToolItem(ToolAction.DUPLICATE, R.drawable.ic_duplicate, "Duplicate"),
         ToolItem(ToolAction.DELETE, R.drawable.ic_delete, "Delete")
     )
 
-    private fun updateVisibilityToolIcon() {
-        val index = layerManager.selectedIndex
-        if (index == -1) return
-        toolAdapter.updateVisibilityTool(layerManager.layers[index].isVisible)
-    }
-
-    private fun handleToolAction(tool: ToolItem) {
-        val index = layerManager.selectedIndex
-        if (index == -1) return
-
-        when (tool.id) {
-
-            ToolAction.ROTATE -> {
-                RotateBottomSheet {
-                    layerManager.layers.getOrNull(index)
-                }.show(supportFragmentManager, "rotate")
-            }
-
-            ToolAction.TOGGLE_VISIBILITY -> {
-                layerManager.toggleVisibility(index)
-                layerAdapter.notifyDataSetChanged()
-                updateVisibilityToolIcon()
-            }
-
-            ToolAction.DUPLICATE -> {
-                layerManager.duplicate(index)
-                layerAdapter.notifyDataSetChanged()
-                scrollToSelected()
-            }
-
-            ToolAction.DELETE -> {
-                layerManager.remove(index)
-                layerAdapter.notifyDataSetChanged()
-            }
-
-            ToolAction.LOCK -> Unit
-        }
-
-        hideTools()
-    }
-
-    /* ================= Drag & Drop ================= */
+    /* ================= DRAG & DROP ================= */
 
     private fun attachDragAndDrop() {
         ItemTouchHelper(
@@ -227,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) {
                     super.clearView(rv, vh)
                     layerAdapter.selectAfterDrop(vh.adapterPosition)
-                    hideTools()
+                    uiVisibilityController.hideTools()
                 }
 
                 override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {}
@@ -235,46 +198,31 @@ class MainActivity : AppCompatActivity() {
         ).attachToRecyclerView(layerRecycler)
     }
 
-    /* ================= Add Image ================= */
+    /* ================= ADD IMAGE ================= */
 
     private fun addImageLayer(uri: Uri) {
 
-        val image = ImageView(this).apply {
-            setImageURI(uri)
-            adjustViewBounds = true
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        }
+        val layer = layerFactory.createImageLayer(
+            canvasLayout,
+            uri,
+            "Layer ${layerManager.layers.size + 1}"
+        )
 
-        val container = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            clipChildren = false
-            clipToPadding = false
-            addView(
-                image,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.CENTER
-                )
-            )
-        }
+        val index = layerManager.layers.size
 
-        layerManager.add(
-            LayerItem(
-                name = "Layer ${layerManager.layers.size + 1}",
-                container = container,
-                imageView = image,
-                rotation = 0f
+        EditorContext.undoRedoManager.push(
+            AddLayerAction(
+                layer = layer,
+                layers = layerManager.layers,
+                index = index
             )
         )
 
+        layerManager.add(layer)
         layerAdapter.notifyDataSetChanged()
     }
 
-    /* ================= Permissions ================= */
+    /* ================= PERMISSIONS ================= */
 
     private fun checkAndRequestPermissions() {
         when {

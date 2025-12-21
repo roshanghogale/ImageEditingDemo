@@ -1,4 +1,4 @@
-package com.learnteachsalefromads.imageeditingdemo.utils
+package com.learnteachsalefromads.imageeditingdemo.layer
 
 import android.view.Gravity
 import android.widget.FrameLayout
@@ -8,6 +8,7 @@ import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 class LayerManager(private val canvas: FrameLayout) {
 
     val layers = mutableListOf<LayerItem>()
+    private val transformController = LayerTransformController()
     var selectedIndex = -1
         private set
 
@@ -38,8 +39,8 @@ class LayerManager(private val canvas: FrameLayout) {
         selectTopVisible()
     }
 
-    fun duplicate(index: Int) {
-        if (index !in layers.indices) return
+    fun duplicate(index: Int): LayerItem? {
+        if (index !in layers.indices) return null
         val original = layers[index]
 
         val imageCopy = ImageView(canvas.context).apply {
@@ -48,7 +49,12 @@ class LayerManager(private val canvas: FrameLayout) {
             original.imageView.drawable
                 ?.constantState?.newDrawable()?.mutate()
                 ?.let { setImageDrawable(it) }
-            rotation = original.rotation
+
+            translationX = original.transform.translationX
+            translationY = original.transform.translationY
+            scaleX = original.transform.scale
+            scaleY = original.transform.scale
+            rotation = original.transform.rotation
         }
 
         val containerCopy = FrameLayout(canvas.context).apply {
@@ -72,19 +78,29 @@ class LayerManager(private val canvas: FrameLayout) {
             name = "${original.name} Copy",
             container = containerCopy,
             imageView = imageCopy,
-            rotation = original.rotation
+            transform = original.transform.copy()
         )
 
         layers.add(copy)
         selectedIndex = layers.lastIndex
         redrawCanvas()
+
+        return copy
     }
 
     fun redrawCanvas() {
         canvas.removeAllViews()
+
         layers.forEachIndexed { index, layer ->
-            (layer.container.parent as? FrameLayout)?.removeView(layer.container)
-            if (layer.isVisible && index <= selectedIndex) {
+
+            (layer.container.parent as? FrameLayout)
+                ?.removeView(layer.container)
+
+            if (layer.isVisible) {
+
+                // 🔥 APPLY MODEL → VIEW
+                transformController.applyToView(layer)
+
                 canvas.addView(layer.container)
             }
         }

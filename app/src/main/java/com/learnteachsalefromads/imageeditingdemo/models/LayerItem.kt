@@ -7,7 +7,7 @@ data class LayerItem(
     val name: String,
     val container: FrameLayout,
     val imageView: ImageView,
-    var rotation: Float = 0f,        // ✅ STORED ROTATION
+    val transform: LayerTransform = LayerTransform(), // ✅ NEW
     var isVisible: Boolean = true,
     var isLocked: Boolean = false
 )

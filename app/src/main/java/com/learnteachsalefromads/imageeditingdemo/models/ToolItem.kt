@@ -12,11 +12,3 @@ data class ToolItem(
     val label: String
 )
 
-enum class ToolAction {
-    TOGGLE_VISIBILITY,
-    ROTATE,          // ✅ NEW
-    DUPLICATE,
-    DELETE,
-    LOCK
-}
-

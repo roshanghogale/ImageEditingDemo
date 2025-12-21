@@ -7,7 +7,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.learnteachsalefromads.imageeditingdemo.R
 import com.learnteachsalefromads.imageeditingdemo.databinding.ItemLayerHorizontalBinding
-import com.learnteachsalefromads.imageeditingdemo.utils.LayerManager
+import com.learnteachsalefromads.imageeditingdemo.layer.LayerManager
 
 class LayerAdapter(
     private val manager: LayerManager,
