@@ -3,7 +3,6 @@ package com.learnteachsalefromads.imageeditingdemo.controllers
 import androidx.appcompat.app.AppCompatActivity
 import com.learnteachsalefromads.imageeditingdemo.adapters.LayerAdapter
 import com.learnteachsalefromads.imageeditingdemo.editor.EditorContext
-import com.learnteachsalefromads.imageeditingdemo.editor.actions.AddLayerAction
 import com.learnteachsalefromads.imageeditingdemo.editor.actions.DuplicateLayerAction
 import com.learnteachsalefromads.imageeditingdemo.editor.actions.RemoveLayerAction
 import com.learnteachsalefromads.imageeditingdemo.layer.LayerManager
@@ -15,90 +14,56 @@ class ToolController(
     private val activity: AppCompatActivity,
     private val layerManager: LayerManager,
     private val layerAdapter: LayerAdapter,
-    private val uiVisibilityController: UiVisibilityController
+    private val onStateChanged: () -> Unit   // 🔥 NEW
 ) {
 
     private val history = EditorContext.undoRedoManager
 
     fun onToolAction(tool: ToolItem) {
 
+        val index = layerManager.selectedIndex
+
         when (tool.id) {
 
-            /* ---------- GLOBAL UNDO ---------- */
-            ToolAction.UNDO -> {
-                history.undo()
-                layerManager.redrawCanvas()
-                layerAdapter.notifyDataSetChanged()
+            ToolAction.UNDO -> history.undo()
+            ToolAction.REDO -> history.redo()
+
+            ToolAction.TOGGLE_VISIBILITY -> {
+                if (index !in layerManager.layers.indices) return
+                layerManager.toggleVisibility(index)
             }
 
-            /* ---------- GLOBAL REDO ---------- */
-            ToolAction.REDO -> {
-                history.redo()
-                layerManager.redrawCanvas()
-                layerAdapter.notifyDataSetChanged()
-            }
-
-            /* ---------- ROTATE ---------- */
             ToolAction.ROTATE -> {
-                val index = layerManager.selectedIndex
-                if (index == -1) return
-
+                if (index !in layerManager.layers.indices) return
                 RotateBottomSheet {
                     layerManager.layers.getOrNull(index)
                 }.show(activity.supportFragmentManager, "rotate")
             }
 
-            /* ---------- VISIBILITY ---------- */
-            ToolAction.TOGGLE_VISIBILITY -> {
-                val index = layerManager.selectedIndex
-                if (index == -1) return
-
-                layerManager.toggleVisibility(index)
-                layerAdapter.notifyDataSetChanged()
-            }
-
-            /* ---------- DUPLICATE ---------- */
             ToolAction.DUPLICATE -> {
-                val index = layerManager.selectedIndex
-                if (index == -1) return
-
+                if (index !in layerManager.layers.indices) return
                 val duplicate = layerManager.duplicate(index) ?: return
-                val insertIndex = layerManager.layers.indexOf(duplicate)
-
                 history.push(
                     DuplicateLayerAction(
-                        duplicate = duplicate,
-                        layers = layerManager.layers,
-                        index = insertIndex
-                    )
-                )
-
-                layerAdapter.notifyDataSetChanged()
-            }
-
-            /* ---------- DELETE ---------- */
-            ToolAction.DELETE -> {
-                val index = layerManager.selectedIndex
-                if (index == -1) return
-
-                val layer = layerManager.layers[index]
-
-                history.push(
-                    RemoveLayerAction(
-                        layer,
+                        duplicate,
                         layerManager.layers,
-                        index
+                        layerManager.layers.indexOf(duplicate)
                     )
                 )
-
-                layerManager.remove(index)
-                layerAdapter.notifyDataSetChanged()
             }
 
-            /* ---------- LOCK (future) ---------- */
-            ToolAction.LOCK -> Unit
+            ToolAction.DELETE -> {
+                if (index !in layerManager.layers.indices) return
+                val layer = layerManager.layers[index]
+                history.push(RemoveLayerAction(layer, layerManager.layers, index))
+                layerManager.remove(index)
+            }
+
+            else -> Unit
         }
 
-        uiVisibilityController.hideTools()
+        layerManager.redrawCanvas()
+        layerAdapter.notifyDataSetChanged()
+        onStateChanged() // 🔥 ALWAYS sync UI
     }
 }

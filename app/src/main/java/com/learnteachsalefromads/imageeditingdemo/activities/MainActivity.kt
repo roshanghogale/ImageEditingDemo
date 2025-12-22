@@ -26,7 +26,6 @@ import com.learnteachsalefromads.imageeditingdemo.adapters.ToolAdapter
 import com.learnteachsalefromads.imageeditingdemo.controllers.CanvasController
 import com.learnteachsalefromads.imageeditingdemo.controllers.LayerInteractionController
 import com.learnteachsalefromads.imageeditingdemo.controllers.ToolController
-import com.learnteachsalefromads.imageeditingdemo.controllers.UiVisibilityController
 import com.learnteachsalefromads.imageeditingdemo.editor.EditorContext
 import com.learnteachsalefromads.imageeditingdemo.editor.actions.AddLayerAction
 import com.learnteachsalefromads.imageeditingdemo.layer.LayerFactory
@@ -36,24 +35,17 @@ import com.learnteachsalefromads.imageeditingdemo.models.ToolItem
 
 class MainActivity : AppCompatActivity() {
 
-    /* ================= UI ================= */
-
     private lateinit var rootLayout: LinearLayout
     private lateinit var canvasLayout: FrameLayout
     private lateinit var btnAddLayerInline: ImageView
     private lateinit var layerRecycler: RecyclerView
     private lateinit var toolRecycler: RecyclerView
 
-    /* ================= CORE ================= */
-
     private lateinit var layerManager: LayerManager
     private lateinit var layerAdapter: LayerAdapter
     private lateinit var toolAdapter: ToolAdapter
 
-    /* ================= CONTROLLERS ================= */
-
     private lateinit var canvasController: CanvasController
-    private lateinit var uiVisibilityController: UiVisibilityController
     private lateinit var layerInteractionController: LayerInteractionController
     private lateinit var toolController: ToolController
 
@@ -75,9 +67,8 @@ class MainActivity : AppCompatActivity() {
         setupControllers()
         attachDragAndDrop()
         setupClicks()
+        updateToolbarState()
     }
-
-    /* ================= SETUP ================= */
 
     private fun bindViews() {
         rootLayout = findViewById(R.id.rootLayout)
@@ -105,100 +96,96 @@ class MainActivity : AppCompatActivity() {
 
         layerAdapter = LayerAdapter(layerManager) { index ->
             layerInteractionController.onLayerClicked(index)
+            updateVisibilityToolIcon()
         }
 
-        layerRecycler.apply {
-            layoutManager =
-                LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
-            adapter = layerAdapter
-            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-        }
+        layerRecycler.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        layerRecycler.adapter = layerAdapter
 
         toolAdapter = ToolAdapter(createTools()) {
             toolController.onToolAction(it)
         }
 
-        toolRecycler.apply {
-            layoutManager =
-                LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
-            adapter = toolAdapter
-            itemAnimator = null
-            visibility = View.GONE
-        }
+        toolRecycler.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        toolRecycler.adapter = toolAdapter
     }
 
     private fun setupControllers() {
 
-        uiVisibilityController = UiVisibilityController(toolRecycler)
+        layerInteractionController =
+            LayerInteractionController(layerManager, layerAdapter, layerRecycler)
 
-        layerInteractionController = LayerInteractionController(
-            layerManager,
-            layerAdapter,
-            layerRecycler,
-            uiVisibilityController
-        )
-
-        toolController = ToolController(
-            this,
-            layerManager,
-            layerAdapter,
-            uiVisibilityController
-        )
+        toolController =
+            ToolController(
+                activity = this,
+                layerManager = layerManager,
+                layerAdapter = layerAdapter,
+                onStateChanged = { updateToolbarState() }
+            )
 
         canvasController = CanvasController(canvasLayout, layerManager)
         canvasController.attach()
     }
 
     private fun setupClicks() {
-
-        btnAddLayerInline.setOnClickListener {
-            checkAndRequestPermissions()
-        }
-
-        canvasLayout.setOnClickListener {
-            uiVisibilityController.hideTools()
-        }
+        btnAddLayerInline.setOnClickListener { checkAndRequestPermissions() }
     }
 
-    /* ================= TOOLS ================= */
+    /* ---------- TOOLBAR ---------- */
+
+    private fun updateToolbarState() {
+        if (layerManager.layers.isEmpty()) {
+            toolRecycler.visibility = View.GONE
+            return
+        }
+
+        toolRecycler.visibility = View.VISIBLE
+        updateVisibilityToolIcon()
+    }
+
+    private fun updateVisibilityToolIcon() {
+        val index = layerManager.selectedIndex
+        if (index !in layerManager.layers.indices) return
+        toolAdapter.updateVisibilityTool(layerManager.layers[index].isVisible)
+    }
 
     private fun createTools() = mutableListOf(
         ToolItem(ToolAction.UNDO, R.drawable.ic_undo, "Undo"),
         ToolItem(ToolAction.REDO, R.drawable.ic_redo, "Redo"),
-        ToolItem(ToolAction.TOGGLE_VISIBILITY, R.drawable.ic_eye_closed, "Visibility"),
+        ToolItem(ToolAction.TOGGLE_VISIBILITY, R.drawable.ic_eye_closed, "Hide"),
         ToolItem(ToolAction.ROTATE, R.drawable.ic_rotate, "Rotate"),
         ToolItem(ToolAction.DUPLICATE, R.drawable.ic_duplicate, "Duplicate"),
         ToolItem(ToolAction.DELETE, R.drawable.ic_delete, "Delete")
     )
 
-    /* ================= DRAG & DROP ================= */
+    /* ---------- DRAG & DROP ---------- */
 
     private fun attachDragAndDrop() {
-        ItemTouchHelper(
-            object : ItemTouchHelper.SimpleCallback(
-                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT, 0
-            ) {
-                override fun onMove(
-                    rv: RecyclerView,
-                    vh: RecyclerView.ViewHolder,
-                    target: RecyclerView.ViewHolder
-                ): Boolean {
-                    layerAdapter.moveItem(vh.adapterPosition, target.adapterPosition)
-                    return true
-                }
-
-                override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) {
-                    super.clearView(rv, vh)
-                    layerAdapter.selectAfterDrop(vh.adapterPosition)
-                    uiVisibilityController.hideTools()
-                }
-
-                override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {}
+        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT, 0
+        ) {
+            override fun onMove(
+                rv: RecyclerView,
+                vh: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                layerAdapter.moveItem(vh.adapterPosition, target.adapterPosition)
+                return true
             }
-        ).attachToRecyclerView(layerRecycler)
+
+            override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) {
+                super.clearView(rv, vh)
+                layerAdapter.selectAfterDrop(vh.adapterPosition)
+                updateToolbarState()
+            }
+
+            override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {}
+        }).attachToRecyclerView(layerRecycler)
     }
 
-    /* ================= ADD IMAGE ================= */
+    /* ---------- ADD IMAGE ---------- */
 
     private fun addImageLayer(uri: Uri) {
 
@@ -208,21 +195,16 @@ class MainActivity : AppCompatActivity() {
             "Layer ${layerManager.layers.size + 1}"
         )
 
-        val index = layerManager.layers.size
-
         EditorContext.undoRedoManager.push(
-            AddLayerAction(
-                layer = layer,
-                layers = layerManager.layers,
-                index = index
-            )
+            AddLayerAction(layer, layerManager.layers, layerManager.layers.size)
         )
 
         layerManager.add(layer)
         layerAdapter.notifyDataSetChanged()
+        updateToolbarState()
     }
 
-    /* ================= PERMISSIONS ================= */
+    /* ---------- PERMISSIONS ---------- */
 
     private fun checkAndRequestPermissions() {
         when {

@@ -16,15 +16,8 @@ class ToolAdapter(
     inner class VH(val binding: ItemToolBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        return VH(
-            ItemToolBinding.inflate(
-                LayoutInflater.from(parent.context),
-                parent,
-                false
-            )
-        )
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH =
+        VH(ItemToolBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val tool = tools[position]
@@ -35,20 +28,14 @@ class ToolAdapter(
 
     override fun getItemCount(): Int = tools.size
 
-    /**
-     * 🔥 Instant icon update — no fade, no animation
-     */
     fun updateVisibilityTool(isVisible: Boolean) {
         val index = tools.indexOfFirst { it.id == ToolAction.TOGGLE_VISIBILITY }
         if (index == -1) return
 
         tools[index] = tools[index].copy(
-            icon = if (isVisible)
-                R.drawable.ic_eye_closed
-            else
-                R.drawable.ic_eye_open
+            icon = if (isVisible) R.drawable.ic_eye_closed else R.drawable.ic_eye_open,
+            label = if (isVisible) "Hide" else "Show"
         )
-
         notifyItemChanged(index)
     }
 }

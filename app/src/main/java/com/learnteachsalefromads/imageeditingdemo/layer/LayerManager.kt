@@ -3,6 +3,7 @@ package com.learnteachsalefromads.imageeditingdemo.layer
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ImageView
+import com.learnteachsalefromads.imageeditingdemo.R
 import com.learnteachsalefromads.imageeditingdemo.models.LayerItem
 
 class LayerManager(private val canvas: FrameLayout) {
@@ -27,9 +28,7 @@ class LayerManager(private val canvas: FrameLayout) {
     fun toggleVisibility(index: Int) {
         if (index !in layers.indices) return
         layers[index].isVisible = !layers[index].isVisible
-        if (!layers[index].isVisible && index == selectedIndex) {
-            selectTopVisible()
-        } else redrawCanvas()
+        redrawCanvas()
     }
 
     fun remove(index: Int) {
@@ -96,13 +95,21 @@ class LayerManager(private val canvas: FrameLayout) {
             (layer.container.parent as? FrameLayout)
                 ?.removeView(layer.container)
 
-            if (layer.isVisible) {
+            if (!layer.isVisible) return@forEachIndexed
 
-                // 🔥 APPLY MODEL → VIEW
-                transformController.applyToView(layer)
+            // 🔥 Apply model → view
+            transformController.applyToView(layer)
 
-                canvas.addView(layer.container)
+            // 🔥 Selection outline ONLY on image
+            if (index == selectedIndex) {
+                layer.imageView.setBackgroundResource(R.drawable.bg_layer_outline)
+                layer.imageView.setPadding(8, 8, 8, 8) // visual spacing
+            } else {
+                layer.imageView.background = null
+                layer.imageView.setPadding(0, 0, 0, 0)
             }
+
+            canvas.addView(layer.container)
         }
     }
 

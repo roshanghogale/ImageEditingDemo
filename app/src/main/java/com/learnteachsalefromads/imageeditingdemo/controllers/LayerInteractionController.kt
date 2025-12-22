@@ -8,20 +8,12 @@ class LayerInteractionController(
     private val layerManager: LayerManager,
     private val layerAdapter: LayerAdapter,
     private val layerRecycler: RecyclerView,
-    private val uiVisibilityController: UiVisibilityController
 ) {
 
     private var lastClickedIndex = -1
 
     fun onLayerClicked(index: Int) {
-        if (layerManager.selectedIndex == index && lastClickedIndex == index) {
-            uiVisibilityController.toggleTools()
-        } else {
-            uiVisibilityController.hideTools()
-            layerManager.select(index)
-        }
-
-        lastClickedIndex = index
+        layerManager.select(index)
         layerAdapter.notifyDataSetChanged()
         scrollToSelected()
     }

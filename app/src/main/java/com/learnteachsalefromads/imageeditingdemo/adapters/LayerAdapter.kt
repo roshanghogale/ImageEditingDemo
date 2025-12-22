@@ -1,7 +1,6 @@
 package com.learnteachsalefromads.imageeditingdemo.adapters
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -36,11 +35,9 @@ class LayerAdapter(
                 h.itemView.context,
                 if (index == manager.selectedIndex)
                     R.drawable.bg_layer_item_selected
-                else R.drawable.bg_layer_item
+                else
+                    R.drawable.bg_layer_item
             )
-
-        h.b.btnMenu.visibility =
-            if (index == manager.selectedIndex) View.VISIBLE else View.GONE
 
         h.b.rootItem.setOnClickListener { onLayerClick(index) }
     }
@@ -55,8 +52,9 @@ class LayerAdapter(
         notifyItemMoved(from, to)
     }
 
-    fun selectAfterDrop(pos: Int) {
-        manager.select(manager.layers.lastIndex - pos)
+    fun selectAfterDrop(adapterPos: Int) {
+        val modelIndex = manager.layers.lastIndex - adapterPos
+        manager.select(modelIndex)
         notifyDataSetChanged()
     }
 }
